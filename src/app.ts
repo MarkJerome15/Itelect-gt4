@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 
+import { connectDB } from './config/db.js';
 import authRouter from './routes/auth.js';
 import sessionsRouter from './routes/sessions.js';
 
@@ -11,6 +12,12 @@ const app = express();
 // ── Global middleware ────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+
+// ── Ensure DB connection on every serverless request ─────────────────────────
+app.use(async (_req, _res, next) => {
+  await connectDB();
+  next();
+});
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);

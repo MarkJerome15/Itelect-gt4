@@ -1,11 +1,24 @@
 import mongoose from 'mongoose';
 
-export async function connectDB(): Promise<void> {
-  const uri = process.env.MONGO_URI;
-  if (!uri) {
-    throw new Error('MONGO_URI environment variable is not set');
+let connection: Promise<typeof mongoose> | null = null;
+
+export function connectDB(): Promise<typeof mongoose> {
+  if (connection === null) {
+    const uri = process.env.MONGO_URI;
+    if (!uri) {
+      throw new Error('MONGO_URI environment variable is not set');
+    }
+
+    connection = mongoose.connect(uri)
+      .then((m) => {
+        console.log(`✅  MongoDB connected: ${m.connection.host}`);
+        return m;
+      })
+      .catch((err) => {
+        connection = null;
+        throw err;
+      });
   }
 
-  await mongoose.connect(uri);
-  console.log(`✅  MongoDB connected: ${mongoose.connection.host}`);
+  return connection;
 }

@@ -4,16 +4,13 @@ import app from './app.js';
 
 const PORT = Number(process.env.PORT) || 4000;
 
-async function bootstrap(): Promise<void> {
-  // Connect to MongoDB before accepting any HTTP traffic
-  await connectDB();
+// Kick off the DB connection (errors are logged, not fatal)
+connectDB().catch((err: unknown) => {
+  console.error('❌  MongoDB connection error:', err);
+});
 
-  app.listen(PORT, () => {
-    console.log(`🚀  Server running on http://localhost:${PORT}`);
-  });
-}
-
-bootstrap().catch((err: unknown) => {
-  console.error('❌  Failed to start server:', err);
-  process.exit(1);
+// Start listening immediately — the per-request middleware in app.ts
+// ensures the DB is connected before any route handler runs.
+app.listen(PORT, () => {
+  console.log(`🚀  Server running on http://localhost:${PORT}`);
 });
