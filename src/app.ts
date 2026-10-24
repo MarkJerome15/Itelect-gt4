@@ -7,6 +7,7 @@ import { connectDB } from './config/db.js';
 import authRouter from './routes/auth.js';
 import sessionsRouter from './routes/sessions.js';
 import bookingsRouter from './routes/bookings.js';
+import aiRouter from './routes/ai.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use(async (_req, _res, next) => {
 app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/ai', aiRouter);
 
 // ── 404 fallback ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

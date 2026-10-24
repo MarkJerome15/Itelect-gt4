@@ -32,3 +32,5 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     res.status(401).json({ message: 'Unauthorized: invalid or expired token' });
   }
 }
+
+export const requireAuth = authenticate;
