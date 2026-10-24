@@ -14,10 +14,18 @@ const app = express();
 // ── Global middleware ────────────────────────────────────────────────────────
 app.use(
   cors({
-    // Allow the Vite dev server and any explicit CORS_ORIGIN env var
-    origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-      : ['http://localhost:5173', 'http://localhost:4173'],
+    // Allow localhost/127.0.0.1 on any port in dev, plus explicit CORS_ORIGIN or Vercel URLs
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const explicit = process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+        : ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173'];
+      if (isLocalhost || explicit.includes(origin) || origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
