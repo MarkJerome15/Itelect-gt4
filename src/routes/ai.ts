@@ -63,8 +63,12 @@ aiRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Anything else is rethrown to global error handler in app.ts
-    throw err;
+    // Handle missing API key or other configuration errors gracefully
+    const msg = err instanceof Error ? err.message : 'Unknown AI error';
+    console.error('AI route error:', err);
+    res.status(502).json({
+      message: msg,
+    });
   }
 });
 
