@@ -6,11 +6,22 @@ import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
 import authRouter from './routes/auth.js';
 import sessionsRouter from './routes/sessions.js';
+import bookingsRouter from './routes/bookings.js';
 
 const app = express();
 
 // ── Global middleware ────────────────────────────────────────────────────────
-app.use(cors());
+app.use(
+  cors({
+    // Allow the Vite dev server and any explicit CORS_ORIGIN env var
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+      : ['http://localhost:5173', 'http://localhost:4173'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // ── Ensure DB connection on every serverless request ─────────────────────────
@@ -22,6 +33,7 @@ app.use(async (_req, _res, next) => {
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/bookings', bookingsRouter);
 
 // ── 404 fallback ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {

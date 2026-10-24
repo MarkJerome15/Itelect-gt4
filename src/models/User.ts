@@ -20,10 +20,10 @@ const userSchema = new Schema<UserDoc>(
     role: {
       type: String,
       enum: {
-        values: ['user', 'admin'],
-        message: 'Role must be either "user" or "admin"',
+        values: ['tutor', 'tutee', 'user', 'admin'],
+        message: 'Role must be tutor, tutee, user, or admin',
       },
-      default: 'user',
+      default: 'tutee',
     },
     password: {
       type: String,
@@ -48,7 +48,7 @@ const userSchema = new Schema<UserDoc>(
 
 // ── pre-save hook: hash password only when it is new or modified ─────────────
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();

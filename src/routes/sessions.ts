@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { Types } from 'mongoose';
 import { authenticate } from '../middleware/auth.js';
 import SessionModel from '../models/Session.js';
+import UserModel from '../models/User.js';
 import type { CreateSessionInput, UpdateSessionInput } from '../types/index.js';
 
 const router = Router();
@@ -9,17 +10,47 @@ const router = Router();
 // All session routes are protected
 router.use(authenticate);
 
-// ── GET /api/sessions ─ list all sessions belonging to the current user ──────
+// ── GET /api/sessions ─ list tutoring sessions ───────────────────────────────
+// Tutees browse all tutoring sessions; tutors can also pass ?mine=true to view theirs
 router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const sessions = await SessionModel.find({ userId: req.userId }).sort({ createdAt: -1 });
+    const { mine, subject, status, search } = req.query;
+
+    const filter: Record<string, unknown> = {};
+
+    if (mine === 'true') {
+      filter.$or = [{ userId: req.userId }, { tutorId: req.userId }];
+    }
+
+    if (subject && typeof subject === 'string' && subject !== 'all') {
+      filter.subject = new RegExp(`^${subject}$`, 'i');
+    }
+
+    if (status && typeof status === 'string' && status !== 'all') {
+      filter.status = status;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const term = search.trim();
+      filter.$or = [
+        { title: new RegExp(term, 'i') },
+        { subject: new RegExp(term, 'i') },
+        { description: new RegExp(term, 'i') },
+      ];
+    }
+
+    const sessions = await SessionModel.find(filter)
+      .populate('userId', 'name email role')
+      .populate('tutorId', 'name email role')
+      .sort({ createdAt: -1 });
+
     res.json({ count: sessions.length, sessions });
   } catch (err) {
     next(err);
   }
 });
 
-// ── GET /api/sessions/:id ─ get a single session owned by the current user ───
+// ── GET /api/sessions/:id ─ get a single tutoring session ─────────────────────
 router.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!Types.ObjectId.isValid(req.params.id)) {
@@ -27,9 +58,12 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
       return;
     }
 
-    const session = await SessionModel.findOne({ _id: req.params.id, userId: req.userId });
+    const session = await SessionModel.findById(req.params.id)
+      .populate('userId', 'name email role')
+      .populate('tutorId', 'name email role');
+
     if (!session) {
-      res.status(404).json({ message: 'Session not found' });
+      res.status(404).json({ message: 'Tutoring session not found' });
       return;
     }
 
@@ -39,18 +73,25 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
   }
 });
 
-// ── POST /api/sessions ─ create a new session for the current user ───────────
+// ── POST /api/sessions ─ create a new tutoring session ───────────────────────
 router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const body = req.body as CreateSessionInput;
-    const session = await SessionModel.create({ ...body, userId: req.userId });
+    const session = await SessionModel.create({
+      ...body,
+      userId: req.userId,
+      tutorId: req.userId,
+    });
+    
+    await session.populate('userId', 'name email role');
+
     res.status(201).json({ session });
   } catch (err) {
     next(err);
   }
 });
 
-// ── PATCH /api/sessions/:id ─ update a session owned by the current user ─────
+// ── PATCH /api/sessions/:id ─ update session owned by current user ───────────
 router.patch('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!Types.ObjectId.isValid(req.params.id)) {
@@ -60,13 +101,13 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction): Pr
 
     const body = req.body as UpdateSessionInput;
     const session = await SessionModel.findOneAndUpdate(
-      { _id: req.params.id, userId: req.userId }, // strict owner filter
+      { _id: req.params.id, $or: [{ userId: req.userId }, { tutorId: req.userId }] },
       { $set: body },
       { new: true, runValidators: true }
-    );
+    ).populate('userId', 'name email role');
 
     if (!session) {
-      res.status(404).json({ message: 'Session not found' });
+      res.status(404).json({ message: 'Session not found or not authorized to edit' });
       return;
     }
 
@@ -76,7 +117,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction): Pr
   }
 });
 
-// ── DELETE /api/sessions/:id ─ delete a session owned by the current user ────
+// ── DELETE /api/sessions/:id ─ delete session owned by current user ──────────
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!Types.ObjectId.isValid(req.params.id)) {
@@ -84,9 +125,13 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const session = await SessionModel.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    const session = await SessionModel.findOneAndDelete({
+      _id: req.params.id,
+      $or: [{ userId: req.userId }, { tutorId: req.userId }],
+    });
+
     if (!session) {
-      res.status(404).json({ message: 'Session not found' });
+      res.status(404).json({ message: 'Session not found or not authorized to delete' });
       return;
     }
 

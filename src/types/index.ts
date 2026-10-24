@@ -2,53 +2,99 @@ import { Document, Types } from 'mongoose';
 
 // ─── User ────────────────────────────────────────────────────────────────────
 
+export type UserRole = 'tutor' | 'tutee' | 'user' | 'admin';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'admin';
-  password: string; // select:false on schema; only present when explicitly selected
+  role: UserRole;
+  password: string; // select:false on schema
   createdAt: Date;
   updatedAt: Date;
 }
 
-/** Mongoose document type for User (password excluded by default via select:false) */
+/** Mongoose document type for User */
 export type UserDoc = Document<Types.ObjectId> &
   Omit<User, 'id'> & {
     _id: Types.ObjectId;
-    /** Compare a plain password against the stored hash */
     comparePassword?: (candidate: string) => Promise<boolean>;
   };
 
-// ─── Session (Custom Resource) ───────────────────────────────────────────────
+// ─── Tutoring Session ───────────────────────────────────────────────────────
 
-/** Allowed status values for a Session */
-export type SessionStatus = 'planned' | 'in-progress' | 'completed' | 'cancelled';
+export type SessionStatus = 'available' | 'planned' | 'in-progress' | 'completed' | 'cancelled';
 
 export interface Session {
   id: string;
   title: string;
+  subject: string;
   description: string;
   status: SessionStatus;
-  durationMinutes: number; // 1 – 480
+  ratePerHour: number;
+  durationMinutes: number;
+  availableSlots: number;
   notes: string;
-  userId: string;           // ref → User
+  tutorId: string;
+  userId: string; // alias/ref to tutor
   createdAt: Date;
   updatedAt: Date;
 }
 
-/** Mongoose document type for Session */
 export type SessionDoc = Document<Types.ObjectId> &
-  Omit<Session, 'id' | 'userId'> & {
+  Omit<Session, 'id' | 'userId' | 'tutorId'> & {
     _id: Types.ObjectId;
     userId: Types.ObjectId;
+    tutorId: Types.ObjectId;
   };
 
-/** Shape expected in POST /api/sessions body */
-export type CreateSessionInput = Omit<Session, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
+export type CreateSessionInput = {
+  title: string;
+  subject?: string;
+  description?: string;
+  status?: SessionStatus;
+  ratePerHour?: number;
+  durationMinutes: number;
+  availableSlots?: number;
+  notes?: string;
+};
 
-/** Shape expected in PATCH /api/sessions/:id body (all fields optional) */
 export type UpdateSessionInput = Partial<CreateSessionInput>;
+
+// ─── Booking ─────────────────────────────────────────────────────────────────
+
+export type BookingStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled';
+
+export interface Booking {
+  id: string;
+  sessionId: string;
+  tuteeId: string;
+  tutorId: string;
+  status: BookingStatus;
+  scheduledAt: Date;
+  notes: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type BookingDoc = Document<Types.ObjectId> &
+  Omit<Booking, 'id' | 'sessionId' | 'tuteeId' | 'tutorId'> & {
+    _id: Types.ObjectId;
+    sessionId: Types.ObjectId;
+    tuteeId: Types.ObjectId;
+    tutorId: Types.ObjectId;
+  };
+
+export type CreateBookingInput = {
+  sessionId: string;
+  scheduledAt: string | Date;
+  notes?: string;
+};
+
+export type UpdateBookingStatusInput = {
+  status: BookingStatus;
+  notes?: string;
+};
 
 // ─── Auth payloads ───────────────────────────────────────────────────────────
 
@@ -56,7 +102,7 @@ export interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  role?: 'user' | 'admin';
+  role?: UserRole;
 }
 
 export interface LoginInput {
