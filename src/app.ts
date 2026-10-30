@@ -82,4 +82,5 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ message });
 });
 
+export { app };
 export default app;

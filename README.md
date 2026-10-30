@@ -1,5 +1,7 @@
 # ITELECT GT4 - Backend API
 
+[![CI](https://github.com/MarkJerome15/Itelect-gt4/actions/workflows/ci.yml/badge.svg)](https://github.com/MarkJerome15/Itelect-gt4/actions/workflows/ci.yml)
+
 Express & MongoDB backend for the Session Resource application, configured for serverless deployment on Vercel.
 
 ## 🚀 Live Deployment
